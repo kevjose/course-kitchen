@@ -1,60 +1,63 @@
 # Course kitchen
 
-Open `public/index.html` in a browser. No build, login, API key, or application backend is needed. The font uses Google Fonts when available; the dashboard also works with system fonts.
+Personal meditation-course produce planner. Static HTML, CSS and JavaScript, deployed at https://course-kitchen.vercel.app/ from `kevjose/course-kitchen`. There is no login or backend. The theme follows the supplied [Hiragana page](https://learn-kana-gamma.vercel.app/hiragana.html).
 
-The dashboard starts with 20 diners over 10 days. Both values are editable, up to 10,000 diners. Its colors and typography follow the supplied [Hiragana theme](https://learn-kana-gamma.vercel.app/hiragana.html).
+## September purchase seed
 
-## What you can do
+The default kitchen dataset contains one September 16 to 27, 2026 course for 20 candidates and 6 staff. It uses 10 nominal feeding days, with actual meal coverage unconfirmed. It starts as an ongoing course with incomplete purchase coverage. Completing it is an explicit operator action after its end date.
 
-- Plan quantities for eight example fruits and vegetables.
-- Adjust usable stock, starting quantities, purchase increments, and the extra allowance.
-- Inspect six synthetic course histories with different attendance and durations.
-- Record and edit completed courses, then see the forecast recalculate.
-- Switch to Your records to start an empty history. Example records never train that history.
-- Print the shopping list and export or import a JSON backup.
+There are 52 purchase lines and 31 ingredient-and-unit combinations. Forty-six lines came from the fruit and vegetable receipts; six produce candidates came from the kitchen-supplies PDF. Ten lines need review. Missing quantities remain unknown. Supporting bills and payment evidence count once. Raw bananas, ripe bananas, ordinary cucumbers and Mangalore cucumbers remain distinct. Pieces, bunches and kilograms are never added together or automatically converted.
 
-The example records are invented to demonstrate plausible kitchen accounting. They are not verified procurement data or dietary guidance. Starting quantities need the cook's review against the actual menu.
+The fruit summary says INR 1,216; supporting bills total INR 1,217.55 including INR 0.30 bill rounding. The rounding is not an ingredient cost. The mixed produce receipt reconciles to INR 2,440 and the vegetable receipt to INR 3,050. The INR 23,082 kitchen-supplies total includes pantry items; it is not a produce total, and its full line items have not been reconciled.
 
-## Forecasting choice
+Only sanitized quantities, line costs and review notes are shipped. Original documents, payment screenshots, phone numbers, account information and local paths are not included. The shipped seed is public to anyone who can open the site. Subsequent edits remain in that browser.
 
-For a recurring menu, simple exponential smoothing is a reasonable baseline. This version uses an update weight of 0.3. That choice has not been fitted or validated on real kitchen records.
+## Forecast behavior
 
-For each ingredient, calculate raw kitchen usage as opening stock plus purchases, minus remaining raw stock and avoidable spoilage. Normal preparation loss stays in kitchen usage. Divide by actual diners and course days to obtain kg per diner per day. If attendance varies, enter the average daily headcount.
+Reviewed purchase quantities provide a provisional purchase rate per diner-day. Partial coverage and nominal duration can understate a full course's requirement. The dashboard keeps these limitations visible, including on printed drafts. Unreviewed and missing quantities do not contribute rates.
 
-Update the previous estimated rate with 70% of its previous value and 30% of the latest measured rate. Each course receives the same update weight after normalization. Records are processed by course end date, so editing an earlier course recalculates later estimates.
+For a completed course with confirmed feeding days and measured inventory, raw kitchen usage is opening stock plus purchases, minus remaining raw stock and avoidable spoilage. Normal preparation loss stays in usage. This does not measure food actually eaten or plate waste.
 
-Multiply the rate by the planned diners and days, add the chosen percentage allowance, subtract usable stock, and round up to the purchase increment. Never buy a negative quantity.
+The first measured course sets an ingredient's rate. Later courses use exponential smoothing with weight `1 - 0.7 ** min(dinerDays / 260, 2)`. A 260 diner-day course receives 30% weight. Small samples influence the estimate less, and the weight is capped at 51%. This is an explicit heuristic, not a model fitted to the kitchen. It assumes a comparable menu and meal pattern.
 
-Purchase-only records cannot establish usage and do not train the forecast. An unknown shortage also stays out of training. If the cook records an estimate of unmet demand, add that to measured usage before updating the rate. Review shortages even when the numeric rate stays unchanged.
+A shortage with unknown unmet demand preserves observed usage as a lower bound and stays flagged. Later observations cannot silently remove that minimum. Edit the original course with a reviewed unmet amount to resolve it. The minimum does not guarantee sufficient food. Known unmet demand is included before learning.
 
-The prototype does not measure plate waste, model recipes, handle multiple menus, estimate calibrated uncertainty, or schedule deliveries. It forecasts raw kitchen usage for one recurring menu. A large jump in attendance needs a review of batch yields, waste, and delivery capacity.
+The shopping proposal multiplies the rate by planned diners and feeding days, adds an editable allowance, subtracts confirmed stock, and rounds up to the ingredient's purchase increment. All arithmetic uses each ingredient's native unit. A completed measured course invalidates older stock checks for the ingredients it records. Backdated courses do not overwrite newer checks. The operator must recheck current inventory before each new plan.
 
-For a full version, derive the starting quantities from recipes and planned servings. Keep histories separate for different menus. After collecting real courses, compare smoothing against a fixed recipe estimate and a simple historical average using chronological backtests. Choose the method and buffer using measured error, shortages, and waste. Synthetic examples cannot establish which method is best.
+The allowance is a planning choice, not a confidence interval. For 10,000 diners, review kitchen capacity, recipe portions and delivery schedules independently. Browser calculation cost depends on records and ingredients, not diner count.
 
-Sources: [Simple exponential smoothing](https://otexts.com/fpp3/ses.html), [chronological forecast evaluation](https://otexts.com/fpp3/tscv.html).
+## Editing and storage
 
-## Frontend-only storage
+- Add courses, add or review purchase lines, and record completed inventory.
+- Add ingredients in kg, pieces or bunches. Set optional manual starting rates and purchase increments.
+- Use course metadata to distinguish nominal from confirmed feeding days and partial from complete purchase coverage.
+- Synthetic examples remain separate from kitchen data.
+- Export version 2 JSON backups. Import accepts version 1 and version 2.
+- Existing version 1 browser data migrates without deletion. Untouched empty prototype defaults are replaced by the real seed catalog; existing custom records and stock are retained. Undated legacy stock must be rechecked.
+- A seed is added once during initial migration. Importing a backup replaces only the chosen dataset; adding the September seed again is an explicit action and will not overwrite an existing course.
+- Corrupt saved data is preserved and saving is blocked until a valid backup is imported. Storage failures leave a visible warning.
 
-This version uses localStorage. It saves records in the same browser and site origin, not inside the HTML file. Clearing site data removes those records. Export a backup for transfer or recovery. Storage behavior for a double-clicked file varies by browser; use a stable local or hosted URL for regular use.
+Data is stored with localStorage under `course-kitchen-v2`. The old key is retained. Clearing site data removes local edits, so keep exported backups. No automatic synchronization exists.
 
-Ten thousand diners changes the quantities, not the number of database records or the complexity of the forecast. A backend is unnecessary for one operator on one device. For a larger collection of course records, IndexedDB provides structured browser storage without a backend. Automatic remote backups and syncing between devices would need a remote storage service.
+## Run and validate
 
-Sources: [Browser localStorage](https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage), [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API).
-
-## Local preview
-
-Run this command from the repository root, then open http://127.0.0.1:8765.
+Node's built-in test runner is the only test dependency:
 
 ```sh
-python3 -m http.server 8765 --bind 127.0.0.1 --directory public
+node --test tests/*.test.cjs
+node --check public/app.js
+node --check public/data.js
+python3 -m http.server 8781 --bind 127.0.0.1 --directory public
 ```
 
-This is a static preview server. All calculations and record storage run in the browser.
+Open http://127.0.0.1:8781/ in Chrome. Serve the directory rather than opening the HTML as a file, since asset links are rooted at `/`.
+
+Automated checks cover inventory reconciliation, shortage lower bounds, cold starts, sample weights, quantities in different units, seed deduplication, input validation and legacy migration. Browser checks cover the seeded course, scaling, purchase review, persistence, future completion rejection and inventory updates. These checks verify behavior, not empirical forecast accuracy.
 
 ## Deploy
 
-Import the GitHub repository into Vercel. Select Other as the framework. No build command or install command is needed. The output directory is `public`, as specified in `vercel.json`.
+Vercel imports the personal GitHub repository. Framework is Other, output directory is `public`, and there is no build or install step. The configuration is in `vercel.json`.
 
-## Checked in the browser
+## Model references
 
-Verified scaling from 20 to 10,000 diners, separation of sample and kitchen histories, rejection of inconsistent inventory, a lower forecast after increased leftovers, persistence after reload, and restoration of the original sample record. The sample banana shortage is excluded from learning. These checks validate the app's behavior, not its forecast accuracy on real courses.
+[Simple exponential smoothing](https://otexts.com/fpp3/ses.html) describes the method and its assumptions. Once real completed courses are available, use [chronological forecast evaluation](https://otexts.com/fpp3/tscv.html) to compare smoothing with a pooled rate and the previous comparable course. Choose the method and allowance from observed errors, shortages and excess quantities.
